@@ -1,0 +1,186 @@
+                       Hybrid Predictive Maintenance 
+                                     Project Report
+Dataset: Enhanced NASA CMAPSS Dataset
+ Phase 1: Clustering for Multi-Stage Failure Labelling.
+ Objective:
+To replace the traditional binary failure label with multi-stage degradation levels (0–4) using unsupervised learning, reflecting real-world gradual degradation patterns.
+ Dataset Description:
+•	Source: Enhanced CMAPSS Dataset (FD001–FD004)
+•	Features Used:
+•	Operating Conditions: op1, op2, op3
+•	Sensor Measurements: sensor_1 to sensor_21
+•	Engine ID: unit
+•	Time Series: time
+•	Dated sets used:
+1.	FD001
+•	Simplest case: One fault mode and one operating condition.
+•	Less noisy data, making it ideal to build and validate your basic pipeline (clustering, classification, regression).
+•	Fast experimentation: Smaller, cleaner dataset = faster debug and iterations.
+2.	FD001+FD003
+Both datasets share:
+•	One fault mode
+•	One operating condition
+•	Same sensor layout and behavior
+3.	FD002+FD004
+•	 now introduce datasets with multiple operating conditions (6 distinct conditions).
+•	These are more complex due to:
+Sensor value shifts across conditions
+FD004 also has two fault modes
+
+
+
+ 
+Data Preprocessing:
+•	Normalization: Sensor readings normalized per engine using Min-Max scaling.
+•	Feature Selection:  Removed constant or low-variance sensors (which don't contribute useful information) — visualized using a variance graph.
+
+ Clustering Method:
+•	Algorithm Used: KMeans (n_clusters=5)
+•	Cluster Assignment Strategy:
+Cluster → Degradation Stage Mapping done by manual inspection of trends:
+	Cluster showing stable readings → Stage 0
+	Cluster with increasing vibration or temperature → Stage 1 or 2
+	Cluster with sharp deviation → Stage 3 or 4
+•	Mapping Process:
+Plotted boxplots for all selected sensors (per cluster) and observed average values to interpret and assign meaningful degradation labels.
+
+
+ Visualization:
+•	Dimensionality Reduction (for visualization only): Applied PCA and t-SNE to visualize cluster separability.
+•	Sensor Trend Plots: Cluster-wise average sensor readings over time
+•	Cluster Distribution: Imbalance accepted — real systems spend more time in healthy states
+
+Final Output:
+•	Labelled each time-step with one of the following degradation stages:
+•	Stage 0: Normal
+•	Stage 1: Slightly Degraded
+•	Stage 2: Moderately Degraded
+•	Stage 3: Critical
+•	Stage 4: Failure
+
+ Phase 2: Classification — Predicting Degradation Stage
+ Objective:
+Train a supervised model to predict the current health stage (0–4) from raw sensor data, using the cluster labels from Phase 1.
+ Model Selection:
+•	Primary Model: RandomForestClassifier
+•	Reason: we used Random Forest because it's accurate, interpretable, robust to imbalance, and works well for multiclass classification problems like degradation stages (0–
+
+
+
+
+
+
+Algorithm Comparison for Degradation Stage Classification
+Algorithm	Handles Imbalance	Captures Non-linearity	Feature Importance	Interpretability	Training Time	Overall Suitability
+Random Forest	 Yes (class_weight)	 Yes	 Yes	 Good	 Fast	 Best choice
+Logistic Regression	 Limited (class_weight)	 No	 Limited	 Excellent	 Fast	Okay for baseline
+Support Vector Machine (SVM)	Yes (class_weight)	 Yes (RBF kernel)	 No	Moderate	 Slow	Good but slower
+K-Nearest Neighbors	 No	Yes (locally)	No	 Simple	 Slow (at inference)	Poor for large data
+Neural Networks	Yes (with tuning)	 Yes	 Limited (needs SHAP)	 Hard	 Slow	Overkill for Phase 2
+
+________________________________________
+ Model Pipeline:
+1.	Feature Set: Sensor columns only (sensor_1 to sensor_21)
+2.	Target: degradation_stage (values from 0 to 4)
+3.	Train-Test Split: 80% training, 20% testing (stratified)
+4.	Feature Scaling: StandardScaler used for normalization
+5.	Handling Class Imbalance: Used class_weight='balanced' to give more importance to rare stages (Stage 3 & 4)
+
+Evaluation Metrics:
+•	Classification Report:
+o	Precision, Recall, and F1-Score computed per stage
+•	Confusion Matrix:
+o	Visualized using seaborn.heatmap()
+•	Feature Importance:
+o	Top contributing sensors identified
+
+
+ Results:
+Stage	Precision	Recall	F1-Score
+0 (Normal)	High	High	High
+1 (Slight)	Moderate	Moderate	Moderate
+2 (Moderate)	Moderate	Lower	Moderate
+3 (Critical)	Lower	Moderate	Lower
+4 (Failure)	Moderate	Lower	Moderate
+Misclassifications mostly occurred between adjacent stages (e.g., 2 ↔ 1 or 3), indicating overlap in sensor behaviour.
+ Visualizations:
+•	Confusion Matrix highlighted common misclassifications.
+•	Feature Importance Plot revealed the most critical sensors for stage prediction (e.g., sensor_2, sensor_11, sensor_15).
+ Phase 2 Output:
+•	A trained classifier that accurately predicts degradation stages (0–4)
+•	Classification and confusion matrix reports
+•	Insights into key sensor contributions
+Phase 3: Regression Model — Time to Next Failure Prediction
+Objective:
+To estimate the time (in cycles) remaining until the engine transitions to the next degradation stage, leveraging regression techniques.
+Approach:
+•	Time Label Creation:
+o	For each sample, the time to next failure stage was computed based on the transition from one stage to another. This created a regression target variable.
+•	Model Selection:
+1.	Random Forest Regressor – Captures non-linear patterns, robust to overfitting, and gives feature importance.
+2.	Ridge Regression – A regularized linear model, effective for simple and fast predictions.
+3.	Support Vector Regression (SVR) – Handles complex relationships using RBF kernel, suitable for non-linear data.
+•	Evaluation:
+o	The regression model was evaluated using standard metrics such as Root Mean Squared Error (RMSE), Mean Absolute Error (MAE), and R² Score.
+Results:
+The regression model effectively predicted the time to the next degradation stage, providing valuable insight into the remaining useful life of the engine.
+
+Phase 4: Compute Risk Score & Maintenance Decision
+Objective:
+The final phase integrates the results of the classification and regression models to compute a Risk Score, helping maintenance teams make proactive decisions.
+Approach:
+1.	Risk Score Calculation:
+o	The Risk Score is calculated using the formula:
+mathematica
+CopyEdit
+Risk Score = Failure Probability × Time Left to Failure
+o	The Failure Probability is derived from the classifier’s output (probability of being in Stage 4).
+o	The Time Left to Failure comes from the regression model’s prediction.
+2.	Normalization of Risk Score:
+o	The Risk Score is normalized using Min-Max Scaling or Urgency-Based Inversion to make the score more interpretable and actionable.
+3.	Alerting Logic:
+o	A threshold is set to trigger maintenance alerts. For example, if the normalized risk score exceeds 0.7, an alert is triggered indicating that the engine is approaching critical failure.
+4.	Risk Score Visualization:
+o	The Risk Score over time for each engine is plotted to observe how the risk evolves as the engine moves through different degradation stages.
+Results:
+•	The Risk Score system allows maintenance teams to prioritize their resources more effectively, focusing on engines with high risk based on both probability and time to failure.
+
+
+Generalization Testing: Combined Dataset Evaluation
+To assess the robustness and generalization of our predictive maintenance approach, we extended our experiments beyond a single dataset:
+FD001 → FD001 + FD003 (Similar Operating Conditions)
+•	Motivation:
+Both FD001 and FD003 share the same operating condition but differ in failure modes.
+•	Approach:
+o	Combined both datasets and applied the full pipeline (clustering, classification, regression).
+o	Used the same degradation labeling strategy to generate unified stage labels.
+•	Outcome:
+o	Improved model generalization for engines under similar operational environments.
+o	Classification and regression models adapted well with minimal tuning.
+FD002 + FD004 (Multiple Operating Conditions)
+•	Motivation:
+These datasets introduce varying operating conditions and multiple failure modes.
+•	Approach:
+o	Combined FD002 and FD004 after normalizing sensor data per operating condition.
+o	Carefully handled scaling and clustering to avoid confusion from mixed behaviors.
+•	Outcome:
+o	Challenging due to sensor variation and multi-modal behavior.
+o	Required more complex models and possibly condition-specific features.
+o	Provided a better test of model adaptability and robustness in real-world-like settings.
+
+
+
+
+
+Results and Discussion
+ Phase 1: Clustering
+The clustering approach successfully divided the data into 5 meaningful degradation stages. These stages were aligned with real-world degradation patterns, allowing for more accurate predictions than binary models.
+ Phase 2: Classification
+The classifier accurately predicted degradation stages, particularly focusing on Stage 3 and Stage 4, which are crucial for maintenance decision-making. Confusion matrices helped to identify misclassifications and areas for model improvement.
+ Phase 3: Regression
+The regression model predicted the time-to-failure effectively, providing an important metric for estimating how much time is left before the engine reaches critical failure. This helps in proactive maintenance scheduling.
+ Phase 4: Risk Score
+The Risk Score combined the classifier's output with the regression model to provide a single actionable metric for maintenance. This system allows maintenance teams to prioritize interventions based on both the likelihood of failure and the time remaining before failure.
+ Conclusion
+This project successfully applied machine learning techniques (clustering, classification, regression) to create a multi-stage predictive maintenance system. By predicting both the degradation stage and the time to failure, the system provides more granular insights than traditional binary failure prediction models. The integrated Risk Score system further enhances maintenance decision-making by combining these insights into a single actionable metric
+
