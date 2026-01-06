@@ -118,28 +118,51 @@ o	Threshold-based alert evaluation
 PROJECT STRUCTURE:
 
 Hybrid-Predictive-Maintenance/
+
 │
+
 ├── data/
+
 │   ├── train_FD002.txt
+
 │   └── train_FD004.txt
+
 │
+
 ├── models/
+
 │   ├── stage_classifier.pkl
+
 │   ├── stage_scaler.pkl
+
 │   ├── regressor.pkl
+
 │   └── regressor_scaler.pkl
+
 │
+
 ├── src/
+
 │   ├── data_loader.py
+
 │   ├── preprocessing.py
+
 │   ├── phase1_clustering.py
+
 │   ├── phase2_classification.py
+
 │   ├── phase3_regression.py
+
 │   ├── phase4_risk_scoring.py
+
 │   └── main.py   ✅
+
 │
+
 ├── requirements.txt
+
 └── README.md
+
 
 
 How to Run
