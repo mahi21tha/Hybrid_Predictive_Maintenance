@@ -69,7 +69,6 @@ Train a supervised model to predict the current health stage (0–4) from raw se
 
 
 
-
 Algorithm Comparison for Degradation Stage Classification
 Algorithm	Handles Imbalance	Captures Non-linearity	Feature Importance	Interpretability	Training Time	Overall Suitability
 Random Forest	 Yes (class_weight)	 Yes	 Yes	 Good	 Fast	 Best choice
@@ -167,7 +166,6 @@ o	Carefully handled scaling and clustering to avoid confusion from mixed behavio
 o	Challenging due to sensor variation and multi-modal behavior.
 o	Required more complex models and possibly condition-specific features.
 o	Provided a better test of model adaptability and robustness in real-world-like settings.
-
 
 
 
